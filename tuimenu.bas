@@ -9,7 +9,7 @@ REM The second uses hotkeys for the firstlevel, but then uses
 REM Up, Down, Left, Right, Enter and Esc (or Space) in the way you
 REM are probably used to in other programs. They work from the same
 REM configuration file, so it is possible to write completely different
-REM programs that are functionally equivalent.
+REM interfaces for your program that are functionally equivalent.
 
 REM Written in pure BASIC, no weird external assembly routines required.
 REM That makes it slower, but every core of my i7 would run rings around
@@ -92,12 +92,14 @@ REM including this block of declarations. You will also need the
 REM subprograms called Print* and Gotoxy.
 
 REM the subprograms called Demo* are just for demonstration purposes
+DECLARE SUB TuiMenuInputBox (TMMessage$, TheInput$)
+DECLARE SUB TuiMenuYesNoBox (TMMessage$, Yes$, No$)
 DECLARE SUB PrintAt (x%, y%, text$)
 DECLARE SUB TuiMenuRestoreScreenMinus2 ()
 DECLARE SUB PrintReverseAt (x%, y%, text$)
 DECLARE SUB PrintReverse (text$)
 DECLARE SUB TuiMenuDropdown (whichmenu%)
-DECLARE SUB Gotoxy (x%, y%)
+DECLARE SUB gotoxy (x%, y%)
 DECLARE SUB TuiMenuInitialize ()
 DECLARE SUB TuiMenuFillFromFile (TMFileName$)
 DECLARE SUB TUIMenuGetSubmenu (TMFileName$, subm$(), subm%)
@@ -120,6 +122,12 @@ OPTION BASE 1
 
 TuiMenuInitialize
 CLS
+name$ = ""
+CALL TuiMenuInputBox("Hi there. What is your name?", name$)
+CLS
+TuiMenuMsgBox ("Hello, " + name$ + "! We have a great demo for you.^Press a key to continue.")
+WHILE INKEY$ = "": WEND
+CLS
 COLOR 9, 0
 TuiMenuMsgBox ("Press any key to fill the screen^with garbage for demonstration purposes")
 COLOR 7, 0
@@ -130,7 +138,7 @@ COLOR 4, 0
 WelcomeMessage$ = "Press M for menu or Q to quit.^Once your screen is up,^press F1 to access the menu.^Just for laughs. we'll make the^submenus in random colors.^Some combinations work better than others :-)"
 REM ran into IDE line length problem here.
 WelcomeMessage$ = WelcomeMessage$ + "^^When you are done testing,^Bring up the menu with F1 and then^press ESC to see the other kind of menu."
-TuiMenuMsgBox (WelcomeMessage$)
+CALL TuiMenuYesNoBox(WelcomeMessage$, "Menu", "Quit")
 WelcomeMessage$ = "" 'save some memory, I hope.
 COLOR 7, 0
 WHILE a$ = ""
@@ -194,7 +202,7 @@ tempgototarget:
 CLS
 TuiMenuRestoreScreen
 COLOR 2, 0
-TuiMenuMsgBox ("Now let's look at a different kind of menu.^Press M for menu or Q to quit.^Unlike the previous example,^this menu stays up permanently.")
+CALL TuiMenuYesNoBox("Now let's look at a different kind of menu.^Press M for menu or Q to quit.^Unlike the previous example,^this menu stays up permanently.", "Menu", "Quit")
 COLOR 7, 0
 a$ = ""
 WHILE LCASE$(a$) <> "m"
@@ -355,7 +363,7 @@ END SUB
 
 SUB DemoRandomGarbage
     totalchars% = ScrW% * ScrH%
-    CALL Gotoxy(1, 1)
+    CALL gotoxy(1, 1)
     rndchr% = 32
     FOR f = 1 TO totalchars%
         rndchr$ = CHR$(INT(RND * 95) + 32)
@@ -371,7 +379,7 @@ SUB DemoTools (TuiMenuTrigger$)
             CASE "F", "f"
                 COLOR 0, 7
                 CLS
-                CALL Gotoxy(1, 3)
+                CALL gotoxy(1, 3)
                 PRINT "                     The Glorious Fake Program Screen."
                 PRINT "                     ================================="
                 PRINT
@@ -414,7 +422,7 @@ SUB DemoTools (TuiMenuTrigger$)
      TuiMenuTrigger$ = ""
 END SUB
 
-SUB Gotoxy (x%, y%)
+SUB gotoxy (x%, y%)
 REM ===========================================================================
 REM Author: Jason Lashua
 REM ok, i hate LOCATE! its BACKWARDS!!!
@@ -563,12 +571,12 @@ END SUB
 
 SUB TuiMenuDraw (display$, RightMsg$)
     spaceleft% = ScrW% - LEN(display$) - 2
-    CALL Gotoxy(1, 1)
+    CALL gotoxy(1, 1)
     SELECT CASE TuiMenuType%
         CASE 0
             PRINT SPACE$(ScrW% * 2);
             CALL PrintAt(1, 1, display$)
-            CALL Gotoxy(LEN(display$) + 1, 1)
+            CALL gotoxy(LEN(display$) + 1, 1)
             IF LEN(RightMsg$) <= spaceleft% THEN
                 PRINT SPACE$(spaceleft% - LEN(RightMsg$));
                 PRINT RightMsg$ + "  ";
@@ -578,7 +586,7 @@ SUB TuiMenuDraw (display$, RightMsg$)
             CALL PrintAt(1, 2, SPACE$(ScrW%))
             CALL PrintReverseAt(1, 1, display$)
             IF LEN(RightMsg$) < spaceleft% THEN
-                CALL Gotoxy(ScrW% - LEN(RightMsg$) - 1, 1)
+                CALL gotoxy(ScrW% - LEN(RightMsg$) - 1, 1)
                 CALL PrintReverse(RightMsg$)
             END IF
     END SELECT
@@ -626,7 +634,7 @@ SUB TuiMenuDropdown (whichmenu%)
         CALL PrintReverseAt(menustart% - 1, INT(f + 1), CHR$(179))
         CALL PrintReverseAt(menustart%, INT(f + 1), menuitem$)
         CALL PrintReverseAt(menustart% + maxlen%, INT(f + 1), CHR$(179))
-        IF f = menuitems% THEN CALL Gotoxy(menustart% - 1, f + 2)
+        IF f = menuitems% THEN CALL gotoxy(menustart% - 1, f + 2)
     NEXT f
     CALL PrintReverse(CHR$(192) + STRING$(maxlen%, 196) + CHR$(217))
     choice% = 1
@@ -655,7 +663,7 @@ SUB TuiMenuDropdown (whichmenu%)
             CASE EnterKey$
                 TuiMenuTrigger$ = LEFT$(array$(choice%), 1)
                 TuiMenuRestoreScreenMinus2
-                CALL Gotoxy(1, 2)
+                CALL gotoxy(1, 2)
                 PRINT SPACE$(ScrW%);
                 EXIT SUB
             CASE EscKey$, SpaceKey$
@@ -752,7 +760,7 @@ SUB TuiMenuHighlight (array$(), array%())
         IF array$(f) <> "" THEN
             FOR n = 1 TO ScrW% - 1
                 vcell% = array%(f)
-                CALL Gotoxy(vcell%, 1)
+                CALL gotoxy(vcell%, 1)
             NEXT n
             PRINT LEFT$(array$(f), 1);
         END IF
@@ -892,6 +900,18 @@ REM Function Keys
     REM aF12Key$ = CHR$(0) + CHR$(140)
 END SUB
 
+SUB TuiMenuInputBox (TMMessage$, TheInput$)
+    REM Put up a box asking for user input
+    REM TheInput$ would normally be left an empty string
+    REM use ^ to insert a line break in TMMessage$
+    REM After using this routine, you will have to re-LOCATE your cursor
+    TMMessage$ = TMMessage$ + "^^^"
+    CALL TuiMenuMsgBox(TMMessage$)
+    y% = CSRLIN - 3
+    CALL gotoxy(3, y%)
+    LINE INPUT "? "; TheInput$
+END SUB
+
 SUB TuiMenuMsgBox (TMMessage$)
     REM Put up a box with a centred message
     REM use ^ to insert a line break
@@ -904,35 +924,32 @@ SUB TuiMenuMsgBox (TMMessage$)
     lines% = lines% + 4 'make space for the borders
     IF lines% > ScrH% THEN TMMessage$ = "Message exceeds screen size"
     lines% = INT((ScrH% - lines%) / 2)
-    CALL Gotoxy(1, lines%)
+    CALL gotoxy(1, lines%)
     REM print border
     PRINT STRING$(ScrW%, 178)
     REM print an empty line
-    PRINT SPACE$(ScrW%)
+    PRINT CHR$(178) + SPACE$(ScrW% - 2) + CHR$(178)
     WHILE TMMessage$ <> ""
-    IF INSTR(TMMessage$, "^") <> 0 THEN
-        WHILE INSTR(TMMessage$, "^") <> 0
-            blength% = INSTR(TMMessage$, "^")
-            bmessage$ = LEFT$(TMMessage$, blength% - 1)
-            TMMessage$ = MID$(TMMessage$, blength% + 1)
-            spacer1$ = SPACE$(INT((ScrW% - blength%) / 2))
-            spacer2$ = SPACE$(INT(ScrW% - (blength% + LEN(spacer1$))) + 1)
-            PRINT spacer1$;
-            PRINT bmessage$;
-            PRINT spacer2$
-        WEND
-    ELSE
-        totallength% = LEN(TMMessage$)
-        spacer1$ = SPACE$(INT((ScrW% - totallength%) / 2))
-        spacer2$ = SPACE$(INT(ScrW% - (totallength% + LEN(spacer1$))))
-        PRINT spacer1$;
-        PRINT TMMessage$;
-        PRINT spacer2$
-    TMMessage$ = ""
-    END IF
+        IF INSTR(TMMessage$, "^") <> 0 THEN
+            WHILE INSTR(TMMessage$, "^") <> 0
+                blength% = INSTR(TMMessage$, "^")
+                bmessage$ = LEFT$(TMMessage$, blength% - 1)
+                TMMessage$ = MID$(TMMessage$, blength% + 1)
+                spacer1$ = SPACE$(INT((ScrW% - blength% - 1) / 2))
+                spacer2$ = SPACE$(INT(ScrW% - (blength% + LEN(spacer1$))) - 1)
+                PRINT CHR$(178) + spacer1$ + bmessage$ + spacer2$ + CHR$(178)
+            WEND
+        ELSE
+            totallength% = LEN(TMMessage$)
+            spacer1$ = SPACE$(INT((ScrW% - totallength% - 1) / 2))
+            totallength% = totallength% + LEN(spacer1$) + 2
+            spacer2$ = SPACE$(ScrW% - totallength%)
+            PRINT CHR$(178) + spacer1$ + TMMessage$ + spacer2$ + CHR$(178)
+            TMMessage$ = ""
+        END IF
     WEND
     REM print an empty line
-    PRINT SPACE$(ScrW%)
+    PRINT CHR$(178) + SPACE$(ScrW% - 2) + CHR$(178)
     REM print border
     PRINT STRING$(ScrW%, 178);
 END SUB
@@ -941,7 +958,7 @@ SUB TuiMenuRestoreScreen
     REM this only restores the top h-1 lines
     REM if you try to do them all it scrolls up no matter what you do
     REM but my routine should never touch that line anyway.
-    CALL Gotoxy(1, 1)
+    CALL gotoxy(1, 1)
     PRINT TuiMenuScr$;
     REM FOR f = 1 TO LEN(TuiMenuScr$) - 1
     REM PRINT MID$(TuiMenuScr$, f, 1);
@@ -951,7 +968,64 @@ END SUB
 SUB TuiMenuRestoreScreenMinus2
     REM same as TuiMenuRestoreScreen, but ignores the first two lines
     REM used whan the menu is permanently onscreen, reduces flickering
-    CALL Gotoxy(1, 3)
+    CALL gotoxy(1, 3)
     PRINT MID$(TuiMenuScr$, (ScrW% * 2) + 1);
+END SUB
+
+SUB TuiMenuYesNoBox (TMMessage$, Yes$, No$)
+    REM Put up a box with two buttons
+    REM These don't HAVE to be Yes and NO, but I
+    REM had to call it something ...
+    REM use ^ to insert a line break in TMMessage$
+    REM After using this routine, you will have to re-LOCATE your cursor
+    IF Yes$ = "" OR No$ = "" THEN   'not dealing with nulls
+        IF TMMessage$ <> "" THEN CALL TuiMenuMsgBox(TMMessage$)
+        EXIT SUB
+    END IF
+    Yes$ = " " + RTRIM$(LTRIM$(Yes$)) + " "
+    No$ = " " + RTRIM$(LTRIM$(No$)) + " "
+    yeslen% = LEN(Yes$)
+    nolen% = LEN(No$)
+    REM adjust padding$ below to change layout
+    padding$ = SPACE$(5)
+    YesNoButtons$ = "^^" + CHR$(201) + STRING$(yeslen%, 205) + CHR$(187) + padding$
+    YesNoButtons$ = YesNoButtons$ + CHR$(201) + STRING$(nolen%, 205) + CHR$(187) + "^"
+    YesNoButtons$ = YesNoButtons$ + CHR$(186) + Yes$ + CHR$(186) + padding$
+    YesNoButtons$ = YesNoButtons$ + CHR$(186) + No$ + CHR$(186) + "^"
+    YesNoButtons$ = YesNoButtons$ + CHR$(200) + STRING$(yeslen%, 205) + CHR$(188) + padding$
+    YesNoButtons$ = YesNoButtons$ + CHR$(200) + STRING$(nolen%, 205) + CHR$(188) + "^"
+    TMMessage$ = TMMessage$ + YesNoButtons$
+    CALL TuiMenuMsgBox(TMMessage$)
+END SUB
+
+SUB TuiMenuYesNoMaybeBox (TMMessage$, Yes$, No$, Maybe$)
+    REM Put up a box with three buttons
+    REM These don't HAVE to be Yes, No and Maybe, but I
+    REM had to call it something ...
+    REM use ^ to insert a line break in TMMessage$
+    REM After using this routine, you will have to re-LOCATE your cursor
+    IF Yes$ = "" OR No$ = "" OR Maybe$ = "" THEN   'not dealing with nulls
+        IF TMMessage$ <> "" THEN CALL TuiMenuMsgBox(TMMessage$)
+        EXIT SUB
+    END IF
+    Yes$ = " " + RTRIM$(LTRIM$(Yes$)) + " "
+    No$ = " " + RTRIM$(LTRIM$(No$)) + " "
+    Maybe$ = " " + RTRIM$(LTRIM$(Maybe$)) + " "
+    yeslen% = LEN(Yes$)
+    nolen% = LEN(No$)
+    maybelen% = LEN(Maybe$)
+    REM adjust padding$ below to change layout
+    padding$ = SPACE$(5)
+    YesNoButtons$ = "^^" + CHR$(201) + STRING$(yeslen%, 205) + CHR$(187) + padding$
+    YesNoButtons$ = YesNoButtons$ + CHR$(201) + STRING$(nolen%, 205) + CHR$(187) + padding$
+    YesNoButtons$ = YesNoButtons$ + CHR$(201) + STRING$(maybelen%, 205) + CHR$(187) + "^"
+    YesNoButtons$ = YesNoButtons$ + CHR$(186) + Yes$ + CHR$(186) + padding$
+    YesNoButtons$ = YesNoButtons$ + CHR$(186) + No$ + CHR$(186) + padding$
+    YesNoButtons$ = YesNoButtons$ + CHR$(186) + Maybe$ + CHR$(186) + "^"
+    YesNoButtons$ = YesNoButtons$ + CHR$(200) + STRING$(yeslen%, 205) + CHR$(188) + padding$
+    YesNoButtons$ = YesNoButtons$ + CHR$(200) + STRING$(nolen%, 205) + CHR$(188) + padding$
+    YesNoButtons$ = YesNoButtons$ + CHR$(200) + STRING$(maybelen%, 205) + CHR$(188) + "^"
+    TMMessage$ = TMMessage$ + YesNoButtons$
+    CALL TuiMenuMsgBox(TMMessage$)
 END SUB
 
