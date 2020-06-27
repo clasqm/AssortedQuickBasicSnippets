@@ -92,6 +92,7 @@ REM including this block of declarations. You will also need the
 REM subprograms called Print* and Gotoxy.
 
 REM the subprograms called Demo* are just for demonstration purposes
+DECLARE FUNCTION TuiMenuPickFile$ (TMMessage$, Mask$, Mode%)
 DECLARE SUB TuiMenuInputBox (TMMessage$, TheInput$)
 DECLARE SUB TuiMenuYesNoBox (TMMessage$, Yes$, No$)
 DECLARE SUB PrintAt (x%, y%, text$)
@@ -122,8 +123,7 @@ OPTION BASE 1
 
 TuiMenuInitialize
 CLS
-name$ = ""
-CALL TuiMenuInputBox("Hi there. What is your name?", name$)
+CALL TuiMenuInputBox("Hi there, and welcome to TuiMenu.^What is your name?", name$)
 CLS
 TuiMenuMsgBox ("Hello, " + name$ + "! We have a great demo for you.^Press a key to continue.")
 WHILE INKEY$ = "": WEND
@@ -195,7 +195,7 @@ WHILE TuiMenuTrigger$ <> EscKey$
 DemoRandomColors
 WEND
 REM *******************************************
-REM end of main loop1
+REM end of main loop 1
 REM *******************************************
 
 tempgototarget:
@@ -329,12 +329,34 @@ SUB DemoFile (TuiMenuTrigger$)
                 TuiMenuMsgBox "This would start a new file."
                 WHILE INKEY$ = "": WEND
                 TuiMenuTrigger$ = EscKey$
+            CASE "s", "S"
+                TuiMenuRestoreScreen
+                aa$ = TuiMenuPickFile$("Please type a filename or press ENTER to cancel:", "*.*", 2)
+                TuiMenuRestoreScreen
+                IF aa$ <> "" THEN
+                    TuiMenuMsgBox "You wanted to save a file called " + aa$
+                ELSE
+                    TuiMenuMsgBox "OK, let's not save a file, then ..."
+                END IF
+                WHILE INKEY$ = "": WEND
+                TuiMenuTrigger$ = EscKey$
             CASE "o", "O"
-                TuiMenuMsgBox "This would open a file."
+                TuiMenuRestoreScreen
+                IF TuiMenuType% = 0 THEN
+                    aa$ = TuiMenuPickFile$("Please type a directory name or press ENTER to cancel:", "*.", 0)
+                ELSE
+                    aa$ = TuiMenuPickFile$("Please select a file or press ESC to cancel:", "*.*", 1)
+                END IF
+                TuiMenuRestoreScreen
+                IF aa$ <> "" THEN
+                    TuiMenuMsgBox "You wanted to open " + aa$
+                ELSE
+                    TuiMenuMsgBox "OK, let's not open a file, then ..."
+                END IF
                 WHILE INKEY$ = "": WEND
                 TuiMenuTrigger$ = EscKey$
             CASE "E", "e"
-                TuiMenuMsgBox "This demonstrates how to exit a program nicely."
+                TuiMenuMsgBox "This demonstrates how to exit a program nicely.^See how the top menu changes."
                 WHILE INKEY$ = "": WEND
                 CALL TuiMenuDraw("Really Quit? (y/n)", "")
                 WHILE really$ = ""
@@ -953,6 +975,202 @@ SUB TuiMenuMsgBox (TMMessage$)
     REM print border
     PRINT STRING$(ScrW%, 178);
 END SUB
+
+FUNCTION TuiMenuPickFile$ (TMMessage$, Mask$, Mode%)
+    REM present a list of files in the current directory
+    REM and get the user to select one.
+
+    REM for DOS 8.3 filenames only, no namby-pamby LFNs here.
+    REM no spaces or ^ characters allowed in filenames.
+
+    REM Limited to 60 files in 80x25 in mode 0, for it
+    REM will crash if there are too many files!
+    REM Mode 1 in 80x25 gives you 78 files.
+    REM Should be enough for most purposes, but
+    REM a higher x resolution will be detected automatically,
+    REM and will give more spaces.
+    REM You can always adjust y% below, just test carefully.
+
+    REM Mask$ is the normal DOS pattern:
+    REM     *.*     = all files and directories
+    REM     *.TXT   = text files only
+    REM     *.      = directories only  'a DOS convention rather than a hard
+                                        'rule, but it's common enough to use.
+    REM Mode%  0 = user types name in
+    REM        1 = user selects file with cursors
+    REM        2 = user types name of new file or directory
+    REM            no overwrites allowed.
+
+    IF Mode% = 0 OR Mode% = 2 THEN OriginalTMMessage$ = TMMessage$
+    Mask$ = UCASE$(LTRIM$(RTRIM$(Mask$)))
+    tempfile$ = ENVIRON$("TMP")
+    tempfile$ = tempfile$ + "\TuiMtemp.999"
+    SHELL ("dir /b /-p " + Mask$ + " > " + tempfile$)
+    x% = INT((ScrW% - 2) / 12)
+    IF Mode% = 0 OR Mode% = 2 THEN
+        y% = 10
+    ELSEIF Mode% = 1 THEN
+        y% = 13
+    END IF
+    counter% = 1
+    ff% = FREEFILE
+    OPEN tempfile$ FOR INPUT AS #ff%
+    DO
+        INPUT #ff%, a$
+        counter% = counter% + 1
+    LOOP UNTIL EOF(ff%)
+    CLOSE #ff%
+    lines% = INT(counter% / x%)
+    OPEN tempfile$ FOR INPUT AS #ff%
+    IF lines% > 0 THEN
+        FOR f = 1 TO lines%
+            b$ = ""
+            FOR n = 1 TO x%
+                INPUT #ff%, a$
+                a$ = UCASE$(LTRIM$(RTRIM$(a$)))
+                IF INSTR(a$, "^") THEN a$ = "Illegal flnm" 'no filenames containing ^, sorry.
+                IF INSTR(a$, " ") THEN a$ = "Illegal flnm" 'no filenames containing spaces, sorry
+                a$ = a$ + SPACE$(13 - LEN(a$))
+                b$ = b$ + a$
+                counter% = counter% - 1
+                NEXT n
+            b$ = b$ + "^"
+            FileList$ = FileList$ + b$
+        NEXT f
+    END IF
+    IF counter% <> 0 THEN
+        b$ = ""
+        WHILE NOT EOF(ff%)
+            INPUT #ff%, a$
+            a$ = UCASE$(LTRIM$(RTRIM$(a$)))
+            IF INSTR(a$, "^") THEN a$ = "Illegal Name" 'no filenames containing ^, sorry.
+            IF INSTR(a$, " ") THEN a$ = "Illegal flnm" 'no filenames containing spaces, sorry
+            a$ = a$ + SPACE$(13 - LEN(a$))
+            b$ = b$ + a$
+        WEND
+        padding% = ScrW% - LEN(b$) - 2
+        IF padding% > 12 AND Mask$ = "*." THEN
+            b$ = b$ + "..          "
+            padding% = padding% - 12
+        END IF
+            FOR z = 1 TO padding%
+                b$ = b$ + " "
+            NEXT z
+        b$ = b$ + "^"
+        FileList$ = FileList$ + b$
+        IF Mask$ = "*." AND INSTR(FileList$, "..") = 0 THEN
+            FileList$ = FileList$ + ".." + SPACE$(ScrW% - 4) + "^"
+        END IF
+    END IF
+    CLOSE #ff%
+    KILL tempfile$
+tryagain: 'GOTO target in case user entered something not on the list
+    TMMessage$ = TMMessage$ + "^^" + FileList$
+    IF Mode% = 0 OR Mode% = 2 THEN
+       CALL TuiMenuInputBox(TMMessage$, TheInput$)
+    ELSEIF Mode% = 1 THEN
+        EscKey$ = CHR$(27)
+        EnterKey$ = CHR$(13)
+        UpKey$ = CHR$(0) + CHR$(72)
+        DownKey$ = CHR$(0) + CHR$(80)
+        LeftKey$ = CHR$(0) + CHR$(75)
+        RightKey$ = CHR$(0) + CHR$(77)
+        REM throw up the message box
+        CALL TuiMenuMsgBox(TMMessage$)
+        REM find the first file item
+        firstfile$ = UCASE$(LEFT$(FileList$, INSTR(FileList$, " ") - 1))
+        c% = 2
+        FOR R% = 1 TO ScrH%
+            IF SCREEN(R%, c%) = ASC(LEFT$(firstfile$, 1)) THEN
+                aa$ = ""
+                FOR x% = 0 TO 11
+                    aa$ = aa$ + CHR$(SCREEN(R%, c% + x%))
+                NEXT x%
+                aa$ = RTRIM$(aa$)
+                IF aa$ = firstfile$ THEN
+                    menux% = c%
+                    menuy% = R%
+                    CALL PrintReverseAt(menux%, menuy%, aa$)
+                END IF
+            END IF
+        NEXT R%
+        GOSUB getselectedfile
+        WHILE dummy$ = ""
+            GOSUB movearound
+        WEND
+    END IF
+    REM exit if ENTER pressed in Mode 0 and 2 (escape routine)
+    IF TheInput$ = "" THEN
+        TuiMenuPickFile$ = ""
+        EXIT FUNCTION
+    END IF
+    REM Check if the file was one of those displayed (Mode 0 and 2)
+    REM this is very rough and ready - it will give a false positive if the
+    REM user types a substring of an existing filename
+    IF Mode% = 0 THEN
+        IF INSTR(UCASE$(FileList$), UCASE$(TheInput$)) = 0 THEN
+            TMMessage$ = OriginalTMMessage$
+            TuiMenuRestoreScreen
+            GOTO tryagain
+        ELSE
+            TuiMenuPickFile$ = UCASE$(TheInput$)
+        END IF
+    ELSEIF Mode% = 2 THEN
+        IF INSTR(UCASE$(FileList$), UCASE$(TheInput$)) <> 0 THEN
+            TMMessage$ = OriginalTMMessage$
+            TuiMenuRestoreScreen
+            GOTO tryagain
+        ELSEIF INSTR(TheInput$, "^") THEN
+            GOTO tryagain 'no filenames containing ^, sorry.
+        ELSEIF INSTR(TheInput$, " ") THEN
+            GOTO tryagain 'no filenames containing spaces, sorry
+        ELSE
+            TuiMenuPickFile$ = UCASE$(TheInput$)
+        END IF
+     END IF
+EXIT FUNCTION
+'########subroutines#########
+movearound:
+    z$ = INKEY$
+    SELECT CASE z$
+        CASE EscKey$
+            TuiMenuPickFile$ = ""
+            EXIT FUNCTION
+        CASE EnterKey$
+             GOSUB getselectedfile
+             TuiMenuPickFile$ = aa$
+             EXIT FUNCTION
+        CASE UpKey$
+            CALL PrintAt(menux%, menuy%, aa$)
+            IF SCREEN(menuy% - 1, menux%) <> 32 THEN menuy% = menuy% - 1
+            GOSUB getselectedfile
+            CALL PrintReverseAt(menux%, menuy%, aa$)
+        CASE DownKey$
+            CALL PrintAt(menux%, menuy%, aa$)
+            IF SCREEN(menuy% + 1, menux%) <> 32 THEN menuy% = menuy% + 1
+            GOSUB getselectedfile
+            CALL PrintReverseAt(menux%, menuy%, aa$)
+        CASE LeftKey$
+            CALL PrintAt(menux%, menuy%, aa$)
+            IF menux% - 13 > 0 THEN menux% = menux% - 13
+            GOSUB getselectedfile
+            CALL PrintReverseAt(menux%, menuy%, aa$)
+        CASE RightKey$
+            CALL PrintAt(menux%, menuy%, aa$)
+            IF menux% + 13 < ScrW% THEN menux% = menux% + 13
+            GOSUB getselectedfile
+            CALL PrintReverseAt(menux%, menuy%, aa$)
+    END SELECT
+    RETURN
+getselectedfile:
+    aa$ = ""
+    CALL gotoxy(menux%, menuy%)
+    FOR x% = 0 TO 11
+        aa$ = aa$ + CHR$(SCREEN(menuy%, menux% + x%))
+    NEXT x%
+    aa$ = RTRIM$(aa$)
+    RETURN
+END FUNCTION
 
 SUB TuiMenuRestoreScreen
     REM this only restores the top h-1 lines
