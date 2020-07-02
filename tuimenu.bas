@@ -87,6 +87,9 @@ REM TuiMenuTrigger$ is the single most important variable in the program.
 REM it is what you will be trapping to decide what to do next.
 COMMON SHARED TuiMenuTrigger$
 
+REM for demo purposes only
+COMMON SHARED cPrtSc$
+
 REM copy all the subprograms declared as TuiMenu* into your program,
 REM including this block of declarations. You will also need the
 REM subprograms called Print* and Gotoxy.
@@ -115,11 +118,14 @@ DECLARE SUB DemoRandomGarbage ()
 DECLARE SUB DemoFile (TuiMenuTrigger$)
 DECLARE SUB DemoTools (TuiMenuTrigger$)
 DECLARE SUB DemoEdit (TuiMenuTrigger$)
+DECLARE SUB DemoScreen2pbm (filename$)
 
 REM Start arrays at 1, not 0
 REM Yes, I'm old school on this. If you change this you may need to rewrite
 REM my routines. Search for "1 TO 5" and change them to "0 TO 4"
 OPTION BASE 1
+
+cPrtSc$ = CHR$(0) + CHR$(114)
 
 TuiMenuInitialize
 CLS
@@ -156,6 +162,9 @@ WEND
 REM just a shortcut to decrease testing time
 REM GOTO tempgototarget
 
+REM create blank icon
+zz = FREEFILE: OPEN "ICON.PBM" FOR OUTPUT AS #zz: CLOSE #zz
+
 REM *******************************************
 REM MAIN LOOP1 - all the action happens in here,
 REM Mutple points of exit, which would not do
@@ -187,6 +196,10 @@ WHILE TuiMenuTrigger$ <> EscKey$
             TuiMenuTrigger$ = ""
         CASE EscKey$
             SYSTEM
+        REM easter egg - make an icon
+        CASE cPrtSc$
+            KILL "ICON.PBM": DemoScreen2pbm ("ICON.PBM")
+            TuiMenuTrigger$ = F1Key$
         CASE ELSE
             WHILE TuiMenuTrigger$ <> F1Key$
                 TuiMenuTrigger$ = INKEY$
@@ -283,6 +296,8 @@ dropdown3:
             TuiMenuTrigger$ = ""
         CASE EscKey$
             SYSTEM
+        CASE cPrtSc$
+            KILL "ICON.PBM": DemoScreen2pbm ("ICON.PBM")
         CASE ELSE
             TuiMenuTrigger$ = INKEY$
     END SELECT
@@ -310,6 +325,8 @@ SUB DemoEdit (TuiMenuTrigger$)
                 TuiMenuMsgBox "This is where a DELETE action would^take place if this was a real program."
                 WHILE INKEY$ = "": WEND
                 TuiMenuTrigger$ = EscKey$
+            CASE cPrtSc$
+                KILL "ICON.PBM": DemoScreen2pbm ("ICON.PBM")
             CASE ELSE
             TuiMenuTrigger$ = INKEY$
         END SELECT
@@ -369,6 +386,8 @@ SUB DemoFile (TuiMenuTrigger$)
                 END IF
             CASE "q", "Q"
                 SYSTEM
+            CASE cPrtSc$
+                KILL "ICON.PBM": DemoScreen2pbm ("ICON.PBM")
             CASE ELSE
                 TuiMenuTrigger$ = INKEY$
         END SELECT
@@ -391,6 +410,50 @@ SUB DemoRandomGarbage
         rndchr$ = CHR$(INT(RND * 95) + 32)
         PRINT rndchr$;
     NEXT f
+END SUB
+
+SUB DemoScreen2pbm (filename$)
+    REM Saves a "mask" of the current text screen to a black and white
+    REM graphics .PBM file.
+    REM
+    REM This can be used, for example, to make an 80x25 icon of your program.
+    REM
+    REM The PBM format can be drawn into many different bitmap programs
+    REM (e.g. The GIMP)or manipulated with the NetPBM utilities.
+    REM
+    REM Any character in a given position will counts as "black"
+    REM Any empty space in a given position will count as "white"
+    REM The ppm format thinks in terms of black on white, so this
+    REM will create a mirror image of your screen in normal DOS B/W mode.
+    REM Of course you can recreate your screen in any fg/bg colours
+    REM with the COLOR command before you use SplashPBM
+    REM
+    REM If the .pbm extension is not given with filename$, it will be added
+    REM the variables ScrW% and ScrH% hold the screen dimensions, and are
+    REM global in all my programs.
+    REM
+    filename$ = UCASE$(filename$)
+    IF LEN(filename$) > 12 THEN filename$ = LEFT$(filename$, 12)
+    IF RIGHT$(filename$, 4) <> ".PBM" THEN
+        IF LEN(filename$) > 8 THEN filename$ = LEFT$(filename$, 8)
+        IF INSTR(filename$, ".") THEN filename$ = LEFT$(filename$, INSTR(filename$, ".") - 1)
+    END IF
+    f% = FREEFILE
+    OPEN filename$ FOR OUTPUT AS #f%
+    PRINT #f%, "P1"
+    PRINT #f%, STR$(ScrW%) + " " + STR$(ScrH%)
+    FOR f = 1 TO ScrH%
+        FOR n = 1 TO ScrW%
+            a$ = CHR$(SCREEN(f, n))
+            IF a$ = " " THEN
+                PRINT #f%, "0 ";
+            ELSE
+                PRINT #f%, "1 ";
+            END IF
+        NEXT n
+        PRINT #f%, CHR$(13) + CHR$(10)
+    NEXT f
+    CLOSE #f%
 END SUB
 
 SUB DemoTools (TuiMenuTrigger$)
@@ -435,6 +498,8 @@ SUB DemoTools (TuiMenuTrigger$)
                 CALL DemoRandomGarbage
                 TuiMenuGetScreen
                 TuiMenuTrigger$ = EscKey$
+            CASE cPrtSc$
+                KILL "ICON.PBM": DemoScreen2pbm ("ICON.PBM")
             CASE ELSE
                 TuiMenuTrigger$ = INKEY$
         END SELECT
